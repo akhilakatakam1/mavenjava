@@ -26,56 +26,54 @@ Questions:
 pipline 
 write script 
 
-pipeline { 
+pipeline {
     agent any
 
-    tools { 
-        jdk 'JAVA_HOME'            // configured in Jenkins
-        maven 'MAVEN_HOME'         // configured in Jenkins
-    } 
-
-    environment {
-        // tool returns path like C:\Program Files\... so we assign it to MVN and then always call it quoted
-        MVN = "${tool 'MAVEN_HOME'}\\bin\\mvn"
-        REPO = "https://github.com/K-Rohit-Reddy/mavenjava.git"
-        APP = "mavenjava"
+    tools {
+        maven 'MAVEN_HOME'
+        jdk 'JDK17'
     }
 
-    stages { 
+    stages {
 
-        stage('Git Clone & Clean') { 
-            steps { 
-                echo "Cleaning old workspace..."
-                bat "rmdir /s /q %APP% 2>nul || exit 0"
-
-                echo "Cloning repo..."
-                bat "git clone %REPO%"
-            } 
-        } 
-
-        stage('Maven Clean') { 
-            steps { 
-                // NOTE the quoted %MVN% to handle spaces in the path
-                bat "\"%MVN%\" clean -f %APP%/pom.xml"
-            } 
-        } 
-
-        stage('Install') { 
-            steps { 
-                bat "\"%MVN%\" install -f %APP%/pom.xml"
-            } 
-        } 
-
-        stage('Test') { 
-            steps { 
-                bat "\"%MVN%\" test -f %APP%/pom.xml"
-            } 
-        } 
-
-        stage('Package') { 
-            steps { 
-                bat "\"%MVN%\" package -f %APP%/pom.xml"
+        stage('Checkout') {
+            steps {
+                cleanWs()
+                git branch: 'master', url: 'https://github.com/savram674/MavenJavaDemo.git'
             }
+        }
+
+        stage('Build') {
+            steps {
+                bat 'mvn clean compile'
+            }
+        }
+
+        stage('Run Tests') {
+            steps {
+                bat 'mvn test'
+            }
+        }
+
+        stage('Package JAR') {
+            steps {
+                bat 'mvn package'
+            }
+        }
+
+        stage('Archive Artifact') {
+            steps {
+                archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Build succeeded.'
+        }
+        failure {
+            echo 'Build failed.'
         }
     }
 }
